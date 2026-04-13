@@ -1,0 +1,61 @@
+name: includuplay_edu
+description: "Gamified Inclusive Learning App for Rural + Blind + Deaf Students"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  riverpod: ^3.2.1
+  flutter_riverpod: ^3.3.1
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.5
+
+  # Connectivity
+  connectivity_plus: ^7.1.0
+
+  # Localization
+  easy_localization: ^3.0.8
+
+  # Accessibility
+  flutter_tts: ^4.2.5
+  flutter_vibrate: ^1.4.0
+
+  # Media
+  just_audio: ^0.10.5
+  video_player: ^2.11.1
+  lottie: ^3.3.2
+
+  # UI
+  google_fonts: ^8.0.2
+  flutter_local_notifications: ^21.0.0
+
+  # Icons
+  cupertino_icons: ^1.0.8
+  http: ^1.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/animations/
+    - assets/videos/
+    - assets/audio/
+    - assets/braille/

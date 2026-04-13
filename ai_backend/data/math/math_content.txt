@@ -1,0 +1,1 @@
+To solve for x in an equation like 2x + 5 = 15, first subtract 5 from both sides to get 2x = 10, then divide by 2. 
