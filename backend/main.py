@@ -82,13 +82,45 @@ def keyword_search(query: str, top_k: int = 3):
     scored.sort(reverse=True)
     return [text for score, text in scored[:top_k] if score > 0]
 
-# Initialize Endee
+def validate_questions(raw):
+    validated = []
+    for q in raw:
+        question = q.get("q", "").strip()
+        options = [str(o).strip() for o in q.get("options", [])]
+        answer = str(q.get("answer", "")).strip()
+
+        if not question or len(options) != 4:
+            continue
+
+        if answer in options:
+            validated.append({"q": question, "options": options, "answer": answer})
+            continue
+
+        matched = False
+        for opt in options:
+            if opt.lower() == answer.lower():
+                validated.append({"q": question, "options": options, "answer": opt})
+                matched = True
+                break
+
+        if not matched:
+            answer_words = set(answer.lower().split())
+            best_score = -1
+            best_opt = options[0]
+            for opt in options:
+                opt_words = set(opt.lower().split())
+                score = len(answer_words & opt_words)
+                if score > best_score:
+                    best_score = score
+                    best_opt = opt
+            validated.append({"q": question, "options": options, "answer": best_opt})
+
+    return validated
+
 print("Initializing Endee Vector Database...")
 endee_index = None
 try:
     db = Endee("./endee_db")
-    print("Endee methods: " + str([m for m in dir(db) if not m.startswith("_")]))
-    
     try:
         endee_index = db.create_index("ncert", dimension=128)
         for chunk in NCERT_CHUNKS:
@@ -110,7 +142,7 @@ try:
                     metadata={"text": chunk["text"], "subject": chunk["subject"]}
                 )
             endee_index = db
-            print("Endee insert method worked!")
+            print("Endee insert worked!")
         except Exception as e2:
             print("insert failed: " + str(e2))
             try:
@@ -122,7 +154,7 @@ try:
                         metadata={"text": chunk["text"], "subject": chunk["subject"]}
                     )
                 endee_index = db
-                print("Endee upsert method worked!")
+                print("Endee upsert worked!")
             except Exception as e3:
                 print("All Endee methods failed: " + str(e3))
                 endee_index = None
@@ -174,7 +206,6 @@ async def ask_question(query: Query):
     try:
         chunks = semantic_search(query.question, top_k=3)
         context = "\n".join(chunks)
-
         if context:
             prompt = (
                 "You are a friendly NCERT tutor for Indian school students Grades 6-10. "
@@ -187,28 +218,15 @@ async def ask_question(query: Query):
                 "You are a friendly NCERT tutor for Indian school students Grades 6-10. "
                 "Answer clearly in 2-3 simple sentences: " + query.question
             )
-
         response = requests.post(
             GROQ_URL,
-            headers={
-                "Authorization": "Bearer " + GROQ_API_KEY,
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 300
-            },
+            headers={"Authorization": "Bearer " + GROQ_API_KEY, "Content-Type": "application/json"},
+            json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": prompt}], "max_tokens": 300},
             timeout=15
         )
         data = response.json()
         answer = data["choices"][0]["message"]["content"]
-        return {
-            "answer": answer,
-            "rag_used": len(chunks) > 0,
-            "sources_found": len(chunks),
-            "vector_db": "Endee"
-        }
+        return {"answer": answer, "rag_used": len(chunks) > 0, "sources_found": len(chunks), "vector_db": "Endee"}
     except Exception as e:
         return {"answer": "Error: " + str(e), "rag_used": False}
 
@@ -216,12 +234,7 @@ async def ask_question(query: Query):
 async def search_knowledge(req: SearchRequest):
     try:
         chunks = semantic_search(req.query, top_k=req.top_k)
-        return {
-            "query": req.query,
-            "results": chunks,
-            "count": len(chunks),
-            "vector_db": "Endee"
-        }
+        return {"query": req.query, "results": chunks, "count": len(chunks), "vector_db": "Endee"}
     except Exception as e:
         return {"results": [], "error": str(e)}
 
@@ -231,32 +244,30 @@ async def generate_quiz(req: QuizRequest):
         chunks = semantic_search(req.subject, top_k=3)
         context = "\n".join(chunks)
         content = (
+            "You are an NCERT quiz generator for Indian school students. "
             "Generate exactly 5 multiple choice questions for " + req.subject +
-            " for " + req.grade + " NCERT students. "
-            "Context: " + context + "\n\n"
-            "Return ONLY a valid JSON array:\n"
-            '[{"q": "question", "options": ["A","B","C","D"], "answer": "correct"}]'
+            " for " + req.grade + " students based on NCERT syllabus.\n\n"
+            "Context:\n" + context + "\n\n"
+            "STRICT RULES:\n"
+            "1. The answer field MUST be copied EXACTLY word-for-word from one of the 4 options\n"
+            "2. Double check that answer matches an option before returning\n"
+            "3. Return ONLY a valid JSON array with no extra text\n\n"
+            '[{"q": "question text", "options": ["option1", "option2", "option3", "option4"], "answer": "must be exact copy of one option"}]'
         )
         response = requests.post(
             GROQ_URL,
-            headers={
-                "Authorization": "Bearer " + GROQ_API_KEY,
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": content}],
-                "max_tokens": 1000,
-                "temperature": 0.7
-            },
+            headers={"Authorization": "Bearer " + GROQ_API_KEY, "Content-Type": "application/json"},
+            json={"model": "llama-3.3-70b-versatile", "messages": [{"role": "user", "content": content}], "max_tokens": 1000, "temperature": 0.5},
             timeout=30
         )
         data = response.json()
         text = data["choices"][0]["message"]["content"]
         match = re.search(r'\[.*\]', text, re.DOTALL)
         if match:
-            questions = json.loads(match.group())
-            return {"questions": questions, "subject": req.subject}
+            raw = json.loads(match.group())
+            validated = validate_questions(raw)
+            if len(validated) >= 3:
+                return {"questions": validated, "subject": req.subject}
         return {"questions": []}
     except Exception as e:
         return {"questions": [], "error": str(e)}
