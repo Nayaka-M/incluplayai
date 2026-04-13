@@ -61,3 +61,21 @@ GROQ_API_KEY = "your_groq_api_key_here"
 ## 🔗 Endee
 
 This project uses [Endee](https://github.com/endee-io/endee) as the vector database for semantic search and RAG over NCERT educational content.
+
+
+includuplay_edu/
+├── lib/
+│   ├── features/
+│   │   ├── auth/          # Login screen
+│   │   ├── dashboard/     # Main dashboard
+│   │   ├── chat/          # AI Chat screen
+│   │   ├── subjects/      # Math, Science, Tamil, EVS
+│   │   ├── gamification/  # Points and streaks
+│   │   └── history/       # Score history
+│   └── core/
+│       └── api/           # AI Tutor service
+├── backend/
+│   ├── main.py            # FastAPI + Endee + Groq
+│   ├── requirements.txt
+│   └── .env.example
+└── README.md
