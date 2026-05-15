@@ -7,3 +7,5 @@ backend/endee_db/
 .dart_tool/
 build/
 *.g.dart
+.vercel
+.env*.local
